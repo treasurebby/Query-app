@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adebayo 20201432 - AI Query App</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>AI Query Web App</h1>
+            <p><strong>Name:</strong> Ehiomhen Treasure Ruth</p>
+            <p><strong>Matric No:</strong> 23CG034059</p>
+            <p><em>Powered by Google Gemini AI</em></p>
+        </header>
+
+        <div class="input-section">
+            <textarea id="question" placeholder="Ask me anything... (e.g., Explain quantum computing in simple terms)"></textarea>
+            <button onclick="askAI()">Ask AI</button>
+        </div>
+
+        <div id="loading">
+    <div class="dot"></div>
+    <div class="dot"></div>
+    <div class="dot"></div>
+        </div>
+        <div id="answer"></div>
+
+        <h2>Past Questions & Answers</h2>
+        <div class="history">
+            {% if history|length == 0 %}
+                <p>No questions asked yet. Be the first!</p>
+            {% else %}
+                {% for row in history %}
+                <div class="entry">
+                    <div class="q">Q: {{ row.question }}</div>
+                    <div class="a">A: {{ row.answer | replace('\n', '<br>') | safe }}</div>
+                    <small>{{ row.timestamp }}</small>
+                </div>
+                <hr>
+                {% endfor %}
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        async function askAI() {
+            const question = document.getElementById("question").value.trim();
+            if (!question) {
+                alert("Please type a question!");
+                return;
+            }
+
+            document.getElementById("loading").style.display = "block";
+            document.getElementById("answer").innerHTML = "";
+
+            const response = await fetch("/ask", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ question: question })
+            });
+
+            const data = await response.json();
+            document.getElementById("loading").style.display = "none";
+
+            if (data.answer) {
+                document.getElementById("answer").innerHTML = 
+                    `<div class="response"><strong>Answer:</strong><br>${data.answer.replace(/\n/g, '<br>')}</div>`;
+                document.getElementById("question").value = "";
+                setTimeout(() => location.reload(), 1500); // Refresh to show in history
+            } else {
+                document.getElementById("answer").innerHTML = 
+                    `<div style="color:red;">Error: ${data.error}</div>`;
+            }
+        }
+
+        // Allow pressing Enter to send (Shift+Enter for new line)
+        document.getElementById("question").addEventListener("keypress", function(e) {
+            if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                askAI();
+            }
+        });
+    </script>
+</body>
+</html>
