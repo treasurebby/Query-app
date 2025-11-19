@@ -132,3 +132,18 @@ button:hover {
 }
 
 small { color: #999; font-size: 0.9rem; }
+
+.history-header h2 { margin:0; }
+.clear-btn:hover { background:#a11 !important; }
+.question-header:hover { background:#3a3a3a; }
+.answer { transition: all 0.4s ease; }
+
+.arrow {
+    font-size: 0.9rem;
+    font-weight: bold;
+    color: #00d4ff;
+    transition: all 0.3s ease;
+}
+.question-header:hover .arrow {
+    color: #7c3aed;
+}

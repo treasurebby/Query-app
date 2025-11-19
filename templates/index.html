@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ehiomhen - AI Query App</title>
+    <title>Ehiomhen Treasure Ruth 23CG034059 - AI Query App</title>
     <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -21,67 +22,126 @@
         </div>
 
         <div id="loading">
-    <div class="dot"></div>
-    <div class="dot"></div>
-    <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
         </div>
         <div id="answer"></div>
 
-        <h2>Past Questions & Answers</h2>
+        <div class="history-header">
+            <h2>History</h2>
+            {% if history|length > 0 %}
+            <button onclick="clearHistory()" class="flat-btn">Clear All History</button>
+            {% endif %}
+        </div>
+
         <div class="history">
             {% if history|length == 0 %}
                 <p>No questions asked yet. Be the first!</p>
             {% else %}
                 {% for row in history %}
-                <div class="entry">
-                    <div class="q">Q: {{ row.question }}</div>
-                    <div class="a">A: {{ row.answer | replace('\n', '<br>') | safe }}</div>
+                <div class="entry" id="entry-{{ row.id }}">
+                    <div class="question-line" onclick="toggleAnswer({{ row.id }})">
+                        <strong>Q:</strong> {{ row.question }}
+                    </div>
+                    <div class="answer" id="answer-{{ row.id }}" style="display:none;">
+                        <div class="answer-content" data-answer="{{ row.answer | escape }}"></div>
+                    </div>
+                    <div class="actions">
+                        <button onclick="event.stopPropagation(); editQuestion({{ row.id }}, '{{ row.question | replace("'", "\\'") | replace('"', '\\"') }}')" class="flat-btn">Edit</button>
+                        <button onclick="event.stopPropagation(); deleteQuestion({{ row.id }})" class="flat-btn">Delete</button>
+                    </div>
                     <small>{{ row.timestamp }}</small>
                 </div>
-                <hr>
                 {% endfor %}
             {% endif %}
         </div>
     </div>
 
     <script>
-        async function askAI() {
-            const question = document.getElementById("question").value.trim();
-            if (!question) {
-                alert("Please type a question!");
-                return;
-            }
-
-            document.getElementById("loading").style.display = "block";
-            document.getElementById("answer").innerHTML = "";
-
-            const response = await fetch("/ask", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ question: question })
-            });
-
-            const data = await response.json();
-            document.getElementById("loading").style.display = "none";
-
-            if (data.answer) {
-                document.getElementById("answer").innerHTML = 
-                    `<div class="response"><strong>Answer:</strong><br>${data.answer.replace(/\n/g, '<br>')}</div>`;
-                document.getElementById("question").value = "";
-                setTimeout(() => location.reload(), 1500); // Refresh to show in history
+        function toggleAnswer(id) {
+            const answerDiv = document.getElementById(`answer-${id}`);
+            const content = answerDiv.querySelector('.answer-content');
+            if (answerDiv.style.display === "block") {
+                answerDiv.style.display = "none";
             } else {
-                document.getElementById("answer").innerHTML = 
-                    `<div style="color:red;">Error: ${data.error}</div>`;
+                answerDiv.style.display = "block";
+                if (!content.innerHTML) {
+                    content.innerHTML = marked.parse(content.getAttribute('data-answer'));
+                }
             }
         }
 
-        // Allow pressing Enter to send (Shift+Enter for new line)
-        document.getElementById("question").addEventListener("keypress", function(e) {
-            if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                askAI();
+        async function askAI() {
+            const q = document.getElementById("question").value.trim();
+            if (!q) return;
+            document.getElementById("loading").style.display = "flex";
+            document.getElementById("answer").innerHTML = "";
+            const res = await fetch("/ask", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({question:q})});
+            const data = await res.json();
+            document.getElementById("loading").style.display = "none";
+            if (data.answer) {
+                document.getElementById("answer").innerHTML = `<div class="response"><strong>Answer:</strong><br>${marked.parse(data.answer)}</div>`;
+                document.getElementById("question").value = "";
+                setTimeout(() => location.reload(), 1000);
             }
+        }
+
+        async function deleteQuestion(id) {
+            if (!confirm("Delete this question?")) return;
+            await fetch(`/delete/${id}`, {method:"DELETE"});
+            document.getElementById(`entry-${id}`).remove();
+        }
+
+        async function editQuestion(id, old) {
+            const newQ = prompt("Edit your question:", old);
+            if (!newQ || newQ===old) return;
+            const res = await fetch("/edit", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,question:newQ})});
+            const data = await res.json();
+            if (data.success) location.reload();
+        }
+
+        async function clearHistory() {
+            if (!confirm("Delete ALL history?")) return;
+            document.querySelectorAll('.entry').forEach(e => e.remove());
+            document.querySelector('.history-header button')?.remove();
+        }
+
+        document.getElementById("question").addEventListener("keypress", e => {
+            if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); askAI(); }
         });
     </script>
+
+    <style>
+        .history-header { display:flex; justify-content:space-between; align-items:center; margin:35px 0 15px; }
+        .history-header h2 { margin:0; color:#e0e0e0; }
+
+        /* ALL BUTTONS: SAME CALM BLUE, NO HOVER EFFECT, NO MOVEMENT */
+        .flat-btn {
+            background:#344978;           /* calm blue */
+            color:white;
+            border:none;
+            padding:9px 18px;
+            border-radius:8px;
+            cursor:pointer;
+            font-size:0.95rem;
+            font-weight:500;
+            transition:none !important;   /* NO hover change at all */
+            outline:none;
+        }
+        .flat-btn:hover, .flat-btn:focus {
+            background:#164fca !important;  /* stay exactly the same */
+            transform:none !important;
+            box-shadow:none !important;
+        }
+
+        .entry { background:#2a2a2a; padding:20px; border-radius:12px; margin-bottom:18px; border:1px solid #404040; }
+        .question-line { cursor:pointer; font-size:1.1rem; color:#e0e0e0; padding:6px 0; }
+        .question-line:hover { color:#00d4ff; }
+        .answer { margin:16px 0; padding:18px; background:#333; border-left:4px solid #00d4ff; border-radius:8px; }
+        .answer-content { line-height:1.8; color:#e0e0e0; }
+        .actions { margin-top:12px; display:flex; gap:12px; }
+        small { color:#888; font-size:0.85rem; }
+    </style>
 </body>
 </html>
